@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<title>Schaltplan – V2</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: #e9ecef;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+#topbar {
+    height: 58px;
+    background: #20252b;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    overflow-x: auto;
+    flex-shrink: 0;
+}
+
+#topbar button,
+#palette button {
+    border: 0;
+    border-radius: 7px;
+    background: #343a40;
+    color: white;
+    padding: 9px 11px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+#topbar button.active {
+    background: #087f5b;
+}
+
+#topbar button:hover,
+#palette button:hover {
+    background: #495057;
+}
+
+#app {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+#palette {
+    width: 190px;
+    background: #f8f9fa;
+    border-right: 1px solid #adb5bd;
+    padding: 8px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+#palette h3 {
+    margin: 5px 3px 10px;
+    font-size: 15px;
+}
+
+#palette button {
+    display: block;
+    width: 100%;
+    color: #111;
+    background: white;
+    border: 1px solid #adb5bd;
+    margin-bottom: 6px;
+    text-align: left;
+}
+
+#palette button span {
+    float: right;
+    font-weight: bold;
+}
+
+#canvasWrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: white;
+}
+
+#canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    touch-action: none;
+}
+
+#status {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    background: rgba(32,37,43,.85);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    pointer-events: none;
+}
+
+#fileImage,
+#fileProject {
+    display: none;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modalBox {
+    width: min(95vw, 650px);
+    height: min(90vh, 650px);
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modalBox h2 {
+    margin: 4px 0 10px;
+    font-size: 19px;
+}
+
+#symbolCanvas {
+    flex: 1;
+    width: 100%;
+    border: 1px solid #adb5bd;
+    background:
+        linear-gradient(#eee 1px, transparent 1px),
+        linear-gradient(90deg, #eee 1px, transparent 1px);
+    background-size: 20px 20px;
+    touch-action: none;
+}
+
+.modalButtons {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.modalButtons button {
+    flex: 1;
+    padding: 12px;
+    border: 0;
+    border-radius: 7px;
+}
+
+#saveCustom {
+    background: #087f5b;
+    color: white;
+}
+
+#cancelCustom {
+    background: #dee2e6;
+}
+
+@media (max-width: 700px) {
+    #palette {
+        width: 135px;
+    }
+
+    #palette button {
+        font-size: 12px;
+        padding: 8px 6px;
+    }
+
+    #topbar {
+        height: 52px;
+    }
+
+    #topbar button {
+        padding: 8px;
+        font-size: 12px;
+    }
+}
+
+
+/* V2 */
+.category{margin-bottom:7px;border:1px solid #ced4da;border-radius:8px;background:#fff;overflow:hidden}.category summary{padding:9px;font-weight:bold;cursor:pointer;background:#e9ecef}.category .catbody{padding:6px}.wire-options{display:flex;gap:4px;align-items:center}.wire-options select,.wire-options input{height:34px;border-radius:7px;border:1px solid #adb5bd;padding:4px}.titleblock{position:absolute;right:10px;bottom:10px;width:520px;max-width:72%;background:white;border:2px solid #111;display:grid;grid-template-columns:1.4fr 1fr 1fr;z-index:3;font-size:11px}.titleblock div{border:1px solid #111;padding:4px;min-height:30px}.titleblock b{display:block;font-size:9px}.titleblock [contenteditable=true]{outline:none}.versionbadge{font-weight:bold;padding:8px}.wireLabel{font-size:12px}
+@media(max-width:700px){.titleblock{width:390px;max-width:70%;font-size:9px}.titleblock div{min-height:25px;padding:3px}}
+
+@media print {
+    #topbar,
+    #palette,
+    #status {
+        display: none !important;
+    }
+
+    #canvasWrap {
+        position: absolute;
+        inset: 0;
+    }
+
+    #canvas {
+        width: 100%;
+        height: 100%;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div id="topbar">
+
+    <button id="selectBtn" class="active">↖ Auswahl</button>
+    <button id="pencilBtn">✏️ Stift</button>
+    <button id="wireBtn">━ Leitung</button>
+    <span class="wire-options"><select id="wirePoles" title="Leiterzahl"><option value="1">1-polig</option><option value="3">3-polig</option><option value="4">4-polig</option><option value="5">5-polig</option></select><input id="wireCable" placeholder="z.B. 5G2,5" size="8"></span>
+    <span class="versionbadge">V2</span>
+    <button id="eraseBtn">⌫ Löschen</button>
+
+    <button onclick="undo()">↩ Rückgängig</button>
+    <button onclick="clearAll()">🗑 Alles löschen</button>
+
+    <button onclick="newProject()">📄 Neu</button>
+    <button onclick="saveProject()">💾 Speichern</button>
+    <button onclick="document.getElementById('fileProject').click()">📂 Laden</button>
+
+    <button onclick="printProject()">🖨 PDF</button>
+
+    <button onclick="document.getElementById('fileImage').click()">
+        ➕ Eigenes Symbol
+    </button>
+
+    <input id="fileImage" type="file" accept=".png,.jpg,.jpeg,.svg,image/*">
+    <input id="fileProject" type="file" accept=".json,application/json">
+
+</div>
+
+<div id="app">
+
+    <aside id="palette">
+
+        <h3>Elektrosymbole</h3>
+
+        <details class="category" open><summary>⚡ Schutzgeräte</summary><div class="catbody">
+        <button onclick="addSymbol('fuse')">Sicherung 1-polig <span>F</span></button>
+        <button onclick="addSymbol('fuse3')">Sicherung 3-polig <span>F</span></button>
+        <button onclick="addSymbol('breaker')">Leitungsschutz <span>Q</span></button>
+        <button onclick="addSymbol('overload')">Motorschutz <span>Q</span></button>
+        <button onclick="addSymbol('overload3')">Motorschutz 3-polig <span>Q</span></button>
+        </div></details>
+        <details class="category"><summary>🔧 Schütze & Relais</summary><div class="catbody">
+        <button onclick="addSymbol('contactor')">Schützspule <span>K</span></button>
+        <button onclick="addSymbol('contactor3')">Leistungsschütz 3-polig <span>K</span></button>
+        <button onclick="addSymbol('relay')">Relais <span>K</span></button>
+        <button onclick="addSymbol('coil')">Spule <span>A</span></button>
+        <button onclick="addSymbol('contact')">Schließer</button>
+        <button onclick="addSymbol('contactNC')">Öffner</button>
+        </div></details>
+        <details class="category"><summary>⚙️ Motoren & Antriebe</summary><div class="catbody">
+        <button onclick="addSymbol('motor')">Drehstrommotor <span>M</span></button>
+        <button onclick="addSymbol('motorBrake')">Motor mit Bremse <span>M</span></button>
+        <button onclick="addSymbol('vfd')">Frequenzumrichter <span>U</span></button>
+        </div></details>
+        <details class="category"><summary>🎛 Bedienung</summary><div class="catbody">
+        <button onclick="addSymbol('push')">Taster Schließer <span>S</span></button>
+        <button onclick="addSymbol('pushNC')">Taster Öffner <span>S</span></button>
+        <button onclick="addSymbol('switch')">Schalter <span>S</span></button>
+        <button onclick="addSymbol('lamp')">Meldeleuchte <span>H</span></button>
+        </div></details>
+        <details class="category"><summary>🔌 Klemmen & Versorgung</summary><div class="catbody">
+        <button onclick="addSymbol('terminal')">Klemme <span>X</span></button>
+        <button onclick="addSymbol('earth')">PE / Erde</button>
+        <button onclick="addSymbol('threephase')">L1 / L2 / L3</button>
+        </div></details>
+        <hr>
+
+        <button onclick="openCustomDrawer()">
+            ✍️ Eigenes Symbol zeichnen
+        </button>
+
+        <p style="font-size:11px;color:#666;">
+            Tipp:<br>
+            Symbol anklicken → einsetzen.<br>
+            Doppelklick auf ein Symbol → Bezeichnung ändern.
+        </p>
+
+    </aside>
+
+    <main id="canvasWrap">
+        <canvas id="canvas"></canvas>
+        <div id="status">Modus: Auswahl</div>
+        <div class="titleblock" id="titleblock">
+          <div><b>PROJEKT</b><span contenteditable="true">Förderanlage</span></div><div><b>ANLAGE</b><span contenteditable="true">Motorsteuerung</span></div><div><b>ZEICHNUNG</b><span contenteditable="true">Hauptstromkreis</span></div>
+          <div><b>ERSTELLT VON</b><span contenteditable="true">Name</span></div><div><b>DATUM</b><span contenteditable="true">22.09.2026</span></div><div><b>ZEICHNUNGS-NR.</b><span contenteditable="true">001</span></div>
+          <div><b>REVISION</b><span contenteditable="true">A</span></div><div><b>SEITE</b><span contenteditable="true">1 / 1</span></div><div><b>FIRMA / LOGO</b><span contenteditable="true">Firma</span></div>
+        </div>
+    </main>
+
+</div>
+
+<div id="customModal" class="modal">
+
+    <div class="modalBox">
+
+        <h2>Eigenes Symbol zeichnen</h2>
+
+        <input id="customName"
+               placeholder="Name, z. B. Frequenzumrichter"
+               style="padding:10px;margin-bottom:8px;">
+
+        <canvas id="symbolCanvas"></canvas>
+
+        <div class="modalButtons">
+            <button id="cancelCustom"
+                    onclick="closeCustomDrawer()">
+                Abbrechen
+            </button>
+
+            <button id="saveCustom"
+                    onclick="saveCustomSymbol()">
+                Symbol speichern
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+/* =========================================================
+   GRUNDLAGEN
+========================================================= */
+
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+const wrap = document.getElementById("canvasWrap");
+const statusBox = document.getElementById("status");
+
+let mode = "select";
+
+let strokes = [];
+let wires = [];
+let symbols = [];
+
+let undoStack = [];
+
+let draggingSymbol = null;
+let dragOffset = {x:0,y:0};
+
+let currentStroke = null;
+let wireStart = null;
+let pencilHoldTimer = null;
+let pencilStraight = false;
+let pencilLastPoint = null;
+let pencilStartPoint = null;
+
+let customSymbols = [];
+
+let gridSize = 20;
+
+let counters = {
+    M: 0,
+    K: 0,
+    Q: 0,
+    F: 0,
+    S: 0,
+    H: 0,
+    X: 0,
+    A: 0
+};
+
+
+/* =========================================================
+   CANVAS
+========================================================= */
+
+function resizeCanvas() {
+
+    const rect = wrap.getBoundingClientRect();
+
+    const oldWidth = canvas.width;
+    const oldHeight = canvas.height;
+
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    draw();
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+resizeCanvas();
+
+
+/* =========================================================
+   MODUS
+========================================================= */
+
+function setMode(newMode) {
+
+    mode = newMode;
+
+    document.querySelectorAll("#topbar button")
+        .forEach(b => b.classList.remove("active"));
+
+    if (newMode === "select")
+        document.getElementById("selectBtn").classList.add("active");
+
+    if (newMode === "pencil")
+        document.getElementById("pencilBtn").classList.add("active");
+
+    if (newMode === "wire")
+        document.getElementById("wireBtn").classList.add("active");
+
+    if (newMode === "erase")
+        document.getElementById("eraseBtn").classList.add("active");
+
+    const names = {
+        select: "Auswahl",
+        pencil: "Stift",
+        wire: "Leitung",
+        erase: "Löschen"
+    };
+
+    statusBox.textContent = "Modus: " + names[newMode];
+}
+
+document.getElementById("selectBtn")
+    .onclick = () => setMode("select");
+
+document.getElementById("pencilBtn")
+    .onclick = () => setMode("pencil");
+
+document.getElementById("wireBtn")
+    .onclick = () => setMode("wire");
+
+document.getElementById("eraseBtn")
+    .onclick = () => setMode("erase");
+
+
+/* =========================================================
+   HILFSFUNKTIONEN
+========================================================= */
+
+function pos(e) {
+
+    const r = canvas.getBoundingClientRect();
+
+    return {
+        x: e.clientX - r.left,
+        y: e.clientY - r.top
+    };
+}
+
+function snap(v) {
+    return Math.round(v / gridSize) * gridSize;
+}
+
+function snapAnglePoint(a,b){
+    const dx=b.x-a.x, dy=b.y-a.y;
+    const len=Math.hypot(dx,dy); if(!len) return b;
+    const step=Math.PI/4;
+    const ang=Math.round(Math.atan2(dy,dx)/step)*step;
+    return {x:a.x+Math.cos(ang)*len,y:a.y+Math.sin(ang)*len};
+}
+
+function saveUndo() {
+
+    undoStack.push(JSON.stringify({
+        strokes,
+        wires,
+        symbols,
+        counters
+    }));
+
+    if (undoStack.length > 50)
+        undoStack.shift();
+}
+
+function undo() {
+
+    if (!undoStack.length)
+        return;
+
+    const old = JSON.parse(
+        undoStack.pop()
+    );
+
+    strokes = old.strokes;
+    wires = old.wires;
+    symbols = old.symbols;
+    counters = old.counters;
+
+    draw();
+}
+
+
+/* =========================================================
+   ZEICHNEN
+========================================================= */
+
+canvas.addEventListener("pointerdown", e => {
+
+    e.preventDefault();
+
+    const p = pos(e);
+
+    canvas.setPointerCapture(e.pointerId);
+
+    if (mode === "pencil") {
+
+        saveUndo();
+
+        currentStroke = [{x:p.x,y:p.y}];
+        pencilStartPoint = {x:p.x,y:p.y};
+        pencilLastPoint = {x:p.x,y:p.y};
+        pencilStraight = false;
+        clearTimeout(pencilHoldTimer);
+        pencilHoldTimer = setTimeout(() => {
+            if (currentStroke && pencilStartPoint && pencilLastPoint) {
+                pencilStraight = true;
+                currentStroke = [pencilStartPoint, snapAnglePoint(pencilStartPoint, pencilLastPoint)];
+                draw(); drawStroke(currentStroke, true);
+                statusBox.textContent = "Stift: Gerade erkannt – Endpunkt bewegen";
+            }
+        }, 500);
+        return;
+    }
+
+    if (mode === "wire") {
+
+        if (!wireStart) {
+
+            wireStart = {
+                x: snap(p.x),
+                y: snap(p.y)
+            };
+
+            statusBox.textContent =
+                "Leitung: Startpunkt gesetzt";
+
+        } else {
+
+            saveUndo();
+
+            const end = {
+                x: snap(p.x),
+                y: snap(p.y)
+            };
+
+            wires.push({
+                x1: wireStart.x, y1: wireStart.y, x2: end.x, y2: end.y,
+                poles: parseInt(document.getElementById("wirePoles").value || "1"),
+                cable: document.getElementById("wireCable").value.trim()
+            });
+
+            wireStart = null;
+
+            statusBox.textContent =
+                "Leitung: Startpunkt wählen";
+
+            draw();
+        }
+
+        return;
+    }
+
+    if (mode === "erase") {
+
+        saveUndo();
+
+        eraseAt(p);
+
+        draw();
+
+        return;
+    }
+
+    if (mode === "select") {
+
+        const s = hitSymbol(p);
+
+        if (s) {
+
+            draggingSymbol = s;
+
+            dragOffset.x = p.x - s.x;
+            dragOffset.y = p.y - s.y;
+
+            saveUndo();
+        }
+    }
+
+});
+
+
+canvas.addEventListener("pointermove", e => {
+
+    e.preventDefault();
+
+    const p = pos(e);
+
+    if (mode === "pencil" && currentStroke) {
+
+        pencilLastPoint = {x:p.x,y:p.y};
+        if (pencilStraight) {
+            currentStroke = [pencilStartPoint, snapAnglePoint(pencilStartPoint, pencilLastPoint)];
+        } else {
+            currentStroke.push({x:p.x,y:p.y});
+            clearTimeout(pencilHoldTimer);
+            pencilHoldTimer = setTimeout(() => {
+                if (currentStroke && pencilStartPoint && pencilLastPoint) {
+                    pencilStraight = true;
+                    currentStroke = [pencilStartPoint, snapAnglePoint(pencilStartPoint, pencilLastPoint)];
+                    draw(); drawStroke(currentStroke, true);
+                }
+            }, 500);
+        }
+
+        draw();
+
+        drawStroke(
+            currentStroke,
+            true
+        );
+    }
+
+    if (mode === "select" && draggingSymbol) {
+
+        draggingSymbol.x =
+            snap(p.x - dragOffset.x);
+
+        draggingSymbol.y =
+            snap(p.y - dragOffset.y);
+
+        draw();
+    }
+
+});
+
+
+canvas.addEventListener("pointerup", e => {
+
+    e.preventDefault();
+
+    if (mode === "pencil" && currentStroke) {
+
+        clearTimeout(pencilHoldTimer);
+        strokes.push(currentStroke);
+        currentStroke = null; pencilStraight=false; pencilStartPoint=null; pencilLastPoint=null;
+
+        draw();
+    }
+
+    if (mode === "select") {
+
+        draggingSymbol = null;
+    }
+
+});
+
+
+canvas.addEventListener("pointercancel", e => {
+
+    currentStroke = null;
+    draggingSymbol = null;
+
+});
+
+
+/* =========================================================
+   DOPPELKLICK – BEZEICHNUNG
+========================================================= */
+
+canvas.addEventListener("dblclick", e => {
+
+    const p = pos(e);
+
+    const s = hitSymbol(p);
+
+    if (!s)
+        return;
+
+    const name = prompt(
+        "Bezeichnung:",
+        s.label || ""
+    );
+
+    if (name !== null) {
+
+        saveUndo();
+
+        s.label = name;
+
+        draw();
+    }
+
+});
+
+
+/* =========================================================
+   SYMBOLE HINZUFÜGEN
+========================================================= */
+
+function nextLabel(type) {
+
+    const map = {
+        motor: "M",
+        contactor: "K",
+        overload: "Q",
+        fuse: "F",
+        breaker: "Q",
+        push: "S",
+        switch: "S",
+        lamp: "H",
+        terminal: "X",
+        relay: "K",
+        coil: "A",
+        contact: "K",
+        contactNC: "K", fuse3:"F", overload3:"Q", contactor3:"K", motorBrake:"M", vfd:"U", pushNC:"S"
+    };
+
+    const prefix = map[type] || "X";
+
+    counters[prefix] =
+        (counters[prefix] || 0) + 1;
+
+    return "-" + prefix + counters[prefix];
+}
+
+
+function addSymbol(type) {
+
+    saveUndo();
+
+    const s = {
+
+        id: Date.now() + Math.random(),
+
+        type,
+
+        x: Math.round(canvas.width / 2 / gridSize) * gridSize,
+
+        y: Math.round(canvas.height / 2 / gridSize) * gridSize,
+
+        w: 90,
+
+        h: 60,
+
+        label: nextLabel(type)
+
+    };
+
+    symbols.push(s);
+
+    setMode("select");
+
+    draw();
+}
+
+
+/* =========================================================
+   SYMBOL HIT TEST
+========================================================= */
+
+function hitSymbol(p) {
+
+    for (let i = symbols.length - 1; i >= 0; i--) {
+
+        const s = symbols[i];
+
+        if (
+            p.x >= s.x - s.w/2 &&
+            p.x <= s.x + s.w/2 &&
+            p.y >= s.y - s.h/2 &&
+            p.y <= s.y + s.h/2
+        ) {
+            return s;
+        }
+    }
+
+    return null;
+}
+
+
+/* =========================================================
+   LÖSCHEN
+========================================================= */
+
+function eraseAt(p) {
+
+    const s = hitSymbol(p);
+
+    if (s) {
+
+        symbols =
+            symbols.filter(x => x !== s);
+
+        return;
+    }
+
+    let closest = -1;
+    let best = 15;
+
+    wires.forEach((w, i) => {
+
+        const d = distanceToLine(
+            p.x,
+            p.y,
+            w.x1,
+            w.y1,
+            w.x2,
+            w.y2
+        );
+
+        if (d < best) {
+
+            best = d;
+            closest = i;
+        }
+    });
+
+    if (closest >= 0) {
+
+        wires.splice(closest, 1);
+
+        return;
+    }
+
+    for (let i = strokes.length - 1; i >= 0; i--) {
+
+        for (const pt of strokes[i]) {
+
+            const d =
+                Math.hypot(
+                    pt.x - p.x,
+                    pt.y - p.y
+                );
+
+            if (d < best) {
+
+                strokes.splice(i,1);
+
+                return;
+            }
+        }
+    }
+}
+
+
+function distanceToLine(px,py,x1,y1,x2,y2) {
+
+    const dx = x2-x1;
+    const dy = y2-y1;
+
+    if (dx === 0 && dy === 0)
+        return Math.hypot(px-x1,py-y1);
+
+    const t =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                ((px-x1)*dx+(py-y1)*dy) /
+                (dx*dx+dy*dy)
+            )
+        );
+
+    const x = x1 + t*dx;
+    const y = y1 + t*dy;
+
+    return Math.hypot(px-x,py-y);
+}
+
+
+/* =========================================================
+   HAUPTZEICHNUNG
+========================================================= */
+
+function draw() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    drawGrid();
+
+    wires.forEach(drawWire);
+
+    strokes.forEach(s =>
+        drawStroke(s, false)
+    );
+
+    symbols.forEach(drawSymbol);
+
+    if (wireStart) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            wireStart.x,
+            wireStart.y,
+            5,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fill();
+    }
+}
+
+
+/* =========================================================
+   RASTER
+========================================================= */
+
+function drawGrid() {
+
+    ctx.save();
+
+    ctx.strokeStyle = "#eeeeee";
+    ctx.lineWidth = 1;
+
+    for (
+        let x = 0;
+        x <= canvas.width;
+        x += gridSize
+    ) {
+
+        ctx.beginPath();
+        ctx.moveTo(x,0);
+        ctx.lineTo(x,canvas.height);
+        ctx.stroke();
+    }
+
+    for (
+        let y = 0;
+        y <= canvas.height;
+        y += gridSize
+    ) {
+
+        ctx.beginPath();
+        ctx.moveTo(0,y);
+        ctx.lineTo(canvas.width,y);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+
+/* =========================================================
+   STIFT
+========================================================= */
+
+function drawStroke(stroke, temporary) {
+
+    if (!stroke.length)
+        return;
+
+    ctx.save();
+
+    ctx.strokeStyle = "#111";
+    ctx.lineWidth = temporary ? 2 : 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        stroke[0].x,
+        stroke[0].y
+    );
+
+    for (let i=1; i<stroke.length; i++) {
+
+        ctx.lineTo(
+            stroke[i].x,
+            stroke[i].y
+        );
+    }
+
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+
+/* =========================================================
+   LEITUNG
+========================================================= */
+
+function drawWire(w) {
+    ctx.save(); ctx.strokeStyle="#111"; ctx.lineWidth=2; ctx.lineCap="square";
+    const poles=w.poles||1, spacing=7, midX=Math.round((w.x1+w.x2)/2/gridSize)*gridSize;
+    for(let i=0;i<poles;i++){
+        const off=(i-(poles-1)/2)*spacing;
+        ctx.beginPath(); ctx.moveTo(w.x1,w.y1+off); ctx.lineTo(midX,w.y1+off); ctx.lineTo(midX,w.y2+off); ctx.lineTo(w.x2,w.y2+off); ctx.stroke();
+    }
+    if(w.cable){ ctx.font="12px Arial"; ctx.fillStyle="#111"; ctx.textAlign="center"; ctx.fillText(w.cable,midX,(w.y1+w.y2)/2-10); }
+    if(poles===5){ ctx.font="10px Arial"; ctx.textAlign="left"; ["L1","L2","L3","N","PE"].forEach((t,i)=>ctx.fillText(t,w.x1+4,w.y1+(i-2)*spacing-3)); }
+    ctx.restore();
+}
+
+
+/* =========================================================
+   SYMBOLE
+========================================================= */
+
+function drawSymbol(s) {
+
+    if (s.type === "custom") {
+
+        drawCustomSymbol(s);
+
+        return;
+    }
+
+    ctx.save();
+
+    ctx.translate(s.x,s.y);
+
+    ctx.strokeStyle = "#111";
+    ctx.fillStyle = "#111";
+    ctx.lineWidth = 2;
+
+    switch(s.type) {
+
+        case "motor":
+            drawMotor(s);
+            break;
+
+        case "contactor":
+            drawContactor(s);
+            break;
+
+        case "overload":
+            drawOverload(s);
+            break;
+
+        case "fuse":
+            drawFuse(s);
+            break;
+
+        case "breaker":
+            drawBreaker(s);
+            break;
+
+        case "push":
+            drawPush(s);
+            break;
+
+        case "switch":
+            drawSwitch(s);
+            break;
+
+        case "lamp":
+            drawLamp(s);
+            break;
+
+        case "terminal":
+            drawTerminal(s);
+            break;
+
+        case "relay":
+            drawRelay(s);
+            break;
+
+        case "coil":
+            drawCoil(s);
+            break;
+
+        case "contact":
+            drawContact(s);
+            break;
+
+        case "earth":
+            drawEarth(s);
+            break;
+
+        case "threephase": drawThreePhase(s); break;
+        case "fuse3": drawThreePoleBox(s,"F"); break;
+        case "overload3": drawThreePoleBox(s,"MS"); break;
+        case "contactor3": drawThreePoleContacts(s); break;
+        case "contactNC": drawNC(s); break;
+        case "pushNC": drawNC(s); break;
+        case "motorBrake": drawMotorBrake(s); break;
+        case "vfd": drawVFD(s); break;
+    }
+
+    ctx.restore();
+}
+
+
+/* =========================================================
+   EINZELNE SYMBOLE
+========================================================= */
+
+function label(s) {
+
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText(
+        s.label || "",
+        0,
+        -42
+    );
+}
+
+
+function drawMotor(s) {
+
+    ctx.beginPath();
+    ctx.arc(0,0,25,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.font = "bold 18px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("M",0,0);
+
+    ctx.beginPath();
+
+    ctx.moveTo(-45,0);
+    ctx.lineTo(-25,0);
+
+    ctx.moveTo(25,0);
+    ctx.lineTo(45,0);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawContactor(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-15,0);
+
+    ctx.moveTo(15,0);
+    ctx.lineTo(40,0);
+
+    ctx.stroke();
+
+    ctx.strokeRect(
+        -15,
+        -20,
+        30,
+        40
+    );
+
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("K",0,5);
+
+    label(s);
+}
+
+
+function drawOverload(s) {
+
+    ctx.strokeRect(
+        -25,
+        -22,
+        50,
+        44
+    );
+
+    ctx.font = "bold 15px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("OL",0,5);
+
+    ctx.beginPath();
+
+    ctx.moveTo(-45,0);
+    ctx.lineTo(-25,0);
+
+    ctx.moveTo(25,0);
+    ctx.lineTo(45,0);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawFuse(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-20,0);
+
+    ctx.moveTo(20,0);
+    ctx.lineTo(40,0);
+
+    ctx.stroke();
+
+    ctx.strokeRect(
+        -20,
+        -10,
+        40,
+        20
+    );
+
+    label(s);
+}
+
+
+function drawBreaker(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-10,0);
+
+    ctx.moveTo(10,0);
+    ctx.lineTo(40,0);
+
+    ctx.moveTo(-10,0);
+    ctx.lineTo(10,-20);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawPush(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-10,0);
+
+    ctx.moveTo(10,0);
+    ctx.lineTo(40,0);
+
+    ctx.moveTo(-10,0);
+    ctx.lineTo(10,-20);
+
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(-10,0,3,0,Math.PI*2);
+    ctx.arc(10,0,3,0,Math.PI*2);
+    ctx.fill();
+
+    label(s);
+}
+
+
+function drawSwitch(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-10,0);
+
+    ctx.moveTo(10,0);
+    ctx.lineTo(40,0);
+
+    ctx.moveTo(-10,0);
+    ctx.lineTo(12,-18);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawLamp(s) {
+
+    ctx.beginPath();
+
+    ctx.arc(0,0,22,0,Math.PI*2);
+
+    ctx.moveTo(-14,-14);
+    ctx.lineTo(14,14);
+
+    ctx.moveTo(14,-14);
+    ctx.lineTo(-14,14);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawTerminal(s) {
+
+    ctx.beginPath();
+
+    ctx.arc(0,0,12,0,Math.PI*2);
+
+    ctx.stroke();
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-12,0);
+
+    ctx.moveTo(12,0);
+    ctx.lineTo(40,0);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawRelay(s) {
+
+    ctx.strokeRect(
+        -20,
+        -20,
+        40,
+        40
+    );
+
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("K",0,5);
+
+    label(s);
+}
+
+
+function drawCoil(s) {
+
+    ctx.beginPath();
+
+    ctx.arc(
+        0,
+        0,
+        18,
+        Math.PI/2,
+        Math.PI*1.5
+    );
+
+    ctx.arc(
+        0,
+        0,
+        18,
+        -Math.PI/2,
+        Math.PI/2
+    );
+
+    ctx.stroke();
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-18,0);
+
+    ctx.moveTo(18,0);
+    ctx.lineTo(40,0);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawContact(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(-40,0);
+    ctx.lineTo(-10,0);
+
+    ctx.moveTo(10,0);
+    ctx.lineTo(40,0);
+
+    ctx.moveTo(-10,0);
+    ctx.lineTo(10,-20);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawEarth(s) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(0,-25);
+    ctx.lineTo(0,0);
+
+    ctx.moveTo(-18,0);
+    ctx.lineTo(18,0);
+
+    ctx.moveTo(-12,7);
+    ctx.lineTo(12,7);
+
+    ctx.moveTo(-6,14);
+    ctx.lineTo(6,14);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawThreePhase(s) {
+
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText("L1",0,-20);
+    ctx.fillText("L2",0,0);
+    ctx.fillText("L3",0,20);
+
+    ctx.beginPath();
+
+    ctx.moveTo(-35,-20);
+    ctx.lineTo(35,-20);
+
+    ctx.moveTo(-35,0);
+    ctx.lineTo(35,0);
+
+    ctx.moveTo(-35,20);
+    ctx.lineTo(35,20);
+
+    ctx.stroke();
+
+    label(s);
+}
+
+
+function drawThreePoleBox(s,t){ for(let y of [-16,0,16]){ctx.beginPath();ctx.moveTo(-42,y);ctx.lineTo(-22,y);ctx.strokeRect(-22,y-5,44,10);ctx.moveTo(22,y);ctx.lineTo(42,y);ctx.stroke();} ctx.font="10px Arial";ctx.textAlign="center";ctx.fillText(t,0,4);label(s);}
+function drawThreePoleContacts(s){for(let y of [-16,0,16]){ctx.beginPath();ctx.moveTo(-42,y);ctx.lineTo(-10,y);ctx.moveTo(10,y);ctx.lineTo(42,y);ctx.moveTo(-10,y);ctx.lineTo(10,y-10);ctx.stroke();}label(s);}
+function drawNC(s){ctx.beginPath();ctx.moveTo(-40,0);ctx.lineTo(-10,0);ctx.moveTo(10,0);ctx.lineTo(40,0);ctx.moveTo(-10,-15);ctx.lineTo(10,0);ctx.stroke();label(s);}
+function drawMotorBrake(s){drawMotor(s);ctx.strokeRect(28,-12,12,24);}
+function drawVFD(s){ctx.strokeRect(-30,-25,60,50);ctx.font="bold 12px Arial";ctx.textAlign="center";ctx.fillText("FU",0,-5);ctx.fillText("~ → ~",0,12);label(s);}
+
+/* =========================================================
+   EIGENE BILD-SYMBOLE
+========================================================= */
+
+document.getElementById("fileImage")
+.addEventListener("change", function(e) {
+
+    const file = e.target.files[0];
+
+    if (!file)
+        return;
+
+    const reader = new FileReader();
+
+    reader.onload = function() {
+
+        saveUndo();
+
+        const img = new Image();
+
+        img.onload = function() {
+
+            symbols.push({
+
+                id: Date.now(),
+
+                type: "custom",
+
+                x: canvas.width/2,
+                y: canvas.height/2,
+
+                w: 120,
+                h: 80,
+
+                label: file.name.replace(/\.[^/.]+$/,""),
+
+                image: reader.result
+            });
+
+            draw();
+        };
+
+        img.src = reader.result;
+    };
+
+    reader.readAsDataURL(file);
+
+    this.value = "";
+});
+
+
+function drawCustomSymbol(s) {
+
+    const img = new Image();
+
+    img.onload = function() {
+
+        ctx.save();
+
+        ctx.translate(s.x,s.y);
+
+        ctx.drawImage(
+            img,
+            -s.w/2,
+            -s.h/2,
+            s.w,
+            s.h
+        );
+
+        ctx.font = "bold 14px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            s.label || "",
+            0,
+            -s.h/2 - 10
+        );
+
+        ctx.restore();
+    };
+
+    img.src = s.image;
+}
+
+
+/* =========================================================
+   EIGENES SYMBOL ZEICHNEN
+========================================================= */
+
+const customModal =
+    document.getElementById("customModal");
+
+const symbolCanvas =
+    document.getElementById("symbolCanvas");
+
+const symbolCtx =
+    symbolCanvas.getContext("2d");
+
+let customStroke = null;
+
+function openCustomDrawer() {
+
+    customModal.classList.add("show");
+
+    symbolCanvas.width =
+        symbolCanvas.clientWidth;
+
+    symbolCanvas.height =
+        symbolCanvas.clientHeight;
+
+    symbolCtx.clearRect(
+        0,
+        0,
+        symbolCanvas.width,
+        symbolCanvas.height
+    );
+}
+
+
+function closeCustomDrawer() {
+
+    customModal.classList.remove("show");
+}
+
+
+symbolCanvas.addEventListener(
+    "pointerdown",
+    e => {
+
+        e.preventDefault();
+
+        symbolCanvas.setPointerCapture(
+            e.pointerId
+        );
+
+        const r =
+            symbolCanvas.getBoundingClientRect();
+
+        customStroke = [{
+            x:e.clientX-r.left,
+            y:e.clientY-r.top
+        }];
+    }
+);
+
+
+symbolCanvas.addEventListener(
+    "pointermove",
+    e => {
+
+        if (!customStroke)
+            return;
+
+        const r =
+            symbolCanvas.getBoundingClientRect();
+
+        customStroke.push({
+            x:e.clientX-r.left,
+            y:e.clientY-r.top
+        });
+
+        drawCustomEditor();
+    }
+);
+
+
+symbolCanvas.addEventListener(
+    "pointerup",
+    () => {
+
+        if (!customStroke)
+            return;
+
+        drawCustomEditor();
+
+        customStroke = null;
+    }
+);
+
+
+function drawCustomEditor() {
+
+    symbolCtx.clearRect(
+        0,
+        0,
+        symbolCanvas.width,
+        symbolCanvas.height
+    );
+
+    if (!customStroke)
+        return;
+
+    symbolCtx.beginPath();
+
+    symbolCtx.moveTo(
+        customStroke[0].x,
+        customStroke[0].y
+    );
+
+    for (
+        let i=1;
+        i<customStroke.length;
+        i++
+    ) {
+
+        symbolCtx.lineTo(
+            customStroke[i].x,
+            customStroke[i].y
+        );
+    }
+
+    symbolCtx.stroke();
+}
+
+
+function saveCustomSymbol() {
+
+    const name =
+        document.getElementById("customName")
+        .value.trim() || "Eigenes Symbol";
+
+    const image =
+        symbolCanvas.toDataURL("image/png");
+
+    customSymbols.push({
+        name,
+        image
+    });
+
+    saveUndo();
+
+    symbols.push({
+
+        id: Date.now(),
+
+        type: "custom",
+
+        x: canvas.width/2,
+        y: canvas.height/2,
+
+        w: 120,
+        h: 90,
+
+        label: name,
+
+        image
+    });
+
+    closeCustomDrawer();
+
+    draw();
+}
+
+
+/* =========================================================
+   PROJEKT SPEICHERN
+========================================================= */
+
+function projectData() {
+
+    return {
+
+        version: 1,
+
+        strokes,
+        wires,
+        symbols,
+        counters,
+        customSymbols,
+        titleblock: Array.from(document.querySelectorAll("#titleblock [contenteditable=true]")).map(x=>x.textContent)
+    };
+}
+
+
+function saveProject() {
+
+    const data =
+        JSON.stringify(
+            projectData(),
+            null,
+            2
+        );
+
+    const blob =
+        new Blob(
+            [data],
+            {type:"application/json"}
+        );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const a =
+        document.createElement("a");
+
+    a.href = url;
+
+    a.download =
+        "schaltplan.json";
+
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+
+document.getElementById("fileProject")
+.addEventListener("change", function(e) {
+
+    const file = e.target.files[0];
+
+    if (!file)
+        return;
+
+    const reader = new FileReader();
+
+    reader.onload = function() {
+
+        try {
+
+            const data =
+                JSON.parse(reader.result);
+
+            saveUndo();
+
+            strokes =
+                data.strokes || [];
+
+            wires =
+                data.wires || [];
+
+            symbols =
+                data.symbols || [];
+
+            counters =
+                data.counters || counters;
+
+            customSymbols = data.customSymbols || [];
+            if(data.titleblock){ document.querySelectorAll("#titleblock [contenteditable=true]").forEach((x,i)=>{if(data.titleblock[i]!=null)x.textContent=data.titleblock[i];}); }
+            draw();
+
+            alert("Projekt geladen.");
+
+        } catch(err) {
+
+            alert(
+                "Die Projektdatei konnte nicht geladen werden."
+            );
+        }
+    };
+
+    reader.readAsText(file);
+
+    this.value = "";
+});
+
+
+/* =========================================================
+   NEUES PROJEKT
+========================================================= */
+
+function newProject() {
+
+    if (
+        !confirm(
+            "Neues Projekt beginnen? Alle aktuellen Zeichnungen werden entfernt."
+        )
+    )
+        return;
+
+    saveUndo();
+
+    strokes = [];
+    wires = [];
+    symbols = [];
+
+    counters = {
+        M:0,
+        K:0,
+        Q:0,
+        F:0,
+        S:0,
+        H:0,
+        X:0,
+        A:0
+    };
+
+    wireStart = null;
+
+    draw();
+}
+
+
+/* =========================================================
+   ALLES LÖSCHEN
+========================================================= */
+
+function clearAll() {
+
+    if (
+        !confirm(
+            "Wirklich alles löschen?"
+        )
+    )
+        return;
+
+    saveUndo();
+
+    strokes = [];
+    wires = [];
+    symbols = [];
+
+    wireStart = null;
+
+    draw();
+}
+
+
+/* =========================================================
+   PDF
+========================================================= */
+
+function printProject() {
+
+    window.print();
+}
+
+
+/* =========================================================
+   START
+========================================================= */
+
+setMode("select");
+
+draw();
+
+</script>
+
+</body>
+</html>
