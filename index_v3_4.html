@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>CAD Schaltplan – V3.4</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#dfe3e6}
+body{display:flex;flex-direction:column}
+#topbar{height:58px;background:#20252b;color:#fff;display:flex;align-items:center;gap:6px;padding:6px;overflow-x:auto;flex-shrink:0}
+button,select,input{font:inherit}
+#topbar button,#topbar select{border:0;border-radius:7px;background:#343a40;color:#fff;padding:9px 11px;white-space:nowrap}
+#topbar button.active{background:#087f5b}
+#version{font-weight:800;padding:7px 9px;border:1px solid #5c636a;border-radius:8px}
+#app{flex:1;display:flex;min-height:0}
+#palette{width:210px;background:#f8f9fa;border-right:1px solid #adb5bd;padding:8px;overflow-y:auto;flex-shrink:0}
+.cat{border:1px solid #c7ccd1;border-radius:8px;margin-bottom:7px;background:white;overflow:hidden}
+.cat summary{padding:9px;font-weight:700;cursor:pointer;background:#eef1f3}
+.cat button{width:100%;border:0;border-top:1px solid #eee;background:white;padding:9px;text-align:left}
+#workspace{flex:1;display:flex;flex-direction:column;min-width:0}
+#canvasWrap{flex:1;position:relative;overflow:auto;background:#bfc5c9;padding:18px;touch-action:pan-x pan-y}
+#sheetHost{position:relative;margin:auto;background:#fff;box-shadow:0 2px 12px #5556}
+#canvas{display:block;touch-action:none}
+#status{position:fixed;left:225px;bottom:54px;background:#20252bdd;color:white;padding:6px 10px;border-radius:7px;font-size:12px;pointer-events:none}
+#pages{height:46px;background:#f7f7f8;border-top:1px solid #aaa;display:flex;align-items:center;gap:6px;padding:5px 8px;overflow-x:auto}
+.pageBtn{border:1px solid #aaa;border-radius:7px;background:white;padding:7px 11px;white-space:nowrap}
+.pageBtn.active{background:#20252b;color:white}
+#pages button.action{border:0;border-radius:7px;padding:8px 10px}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:20}
+.modal.show{display:flex}
+.box{width:min(92vw,520px);background:white;border-radius:12px;padding:15px;max-height:90vh;overflow:auto}
+.box label{display:block;font-size:13px;font-weight:700;margin-top:9px}
+.box input,.box select{width:100%;padding:9px;border:1px solid #aaa;border-radius:7px;margin-top:3px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.box .buttons{display:flex;gap:8px;margin-top:15px}.box .buttons button{flex:1;padding:10px}
+#fileImage,#fileProject{display:none}
+@media(max-width:700px){#palette{width:145px}#palette{font-size:12px}#topbar{height:52px}#topbar button,#topbar select{padding:7px;font-size:12px}#status{left:155px}}
+@media print{#topbar,#palette,#pages,#status{display:none!important}#app,#workspace,#canvasWrap{display:block;overflow:visible;background:white;padding:0}#sheetHost{box-shadow:none;margin:0}}
+</style>
+</head>
+<body>
+<div id="topbar">
+ <span id="version">V3.4</span>
+ <button id="selectBtn" class="active">↖ Auswahl</button>
+ <button id="pencilBtn">✏️ Freihand</button>
+ <button id="wireBtn">🔗 Leitung</button>
+ <select id="poles" title="Polzahl">
+   <option value="1">1-polig</option><option value="3">3-polig</option>
+   <option value="4">4-polig</option><option value="5">5-polig</option>
+ </select>
+ <button id="eraseBtn">⌫ Löschen</button>
+ <button onclick="togglePencilEraser()" title="Radierer umschalten">✏️⇄⌫ Pencil</button>
+ <button onclick="undo()">↩</button>
+ <button onclick="openProjectInfo()">🗂 Projekt</button>
+ <button onclick="saveProject()">💾 Speichern</button>
+ <button onclick="fileProject.click()">📂 Laden</button>
+ <button onclick="fileImage.click()">➕ Symbolbild</button>
+ <button onclick="window.print()">🖨 PDF</button>
+ <input id="fileImage" type="file" accept=".png,.jpg,.jpeg,.svg,image/*">
+ <input id="fileProject" type="file" accept=".json,application/json">
+</div>
+
+<div id="app">
+<aside id="palette">
+ <details class="cat" open><summary>⚡ Schutzgeräte</summary>
+   <button onclick="addSymbol('fuse1')">Sicherung 1-polig</button>
+   <button onclick="addSymbol('fuse3')">Sicherung 3-polig</button>
+   <button onclick="addSymbol('breaker1')">LS 1-polig</button>
+   <button onclick="addSymbol('breaker3')">LS 3-polig</button>
+   <button onclick="addSymbol('overload3')">Motorschutz 3-polig</button>
+ </details>
+ <details class="cat" open><summary>🔧 Schütze & Relais</summary>
+   <button onclick="addSymbol('coil')">Schützspule</button>
+   <button onclick="addSymbol('contactor3')">Leistungsschütz 3-polig</button>
+   <button onclick="addSymbol('contactNO')">Schließer</button>
+   <button onclick="addSymbol('contactNC')">Öffner</button>
+ </details>
+ <details class="cat"><summary>⚙️ Motoren & Antriebe</summary>
+   <button onclick="addSymbol('motor3')">Drehstrommotor</button>
+   <button onclick="addSymbol('motorBrake')">Motor mit Bremse</button>
+   <button onclick="addSymbol('vfd')">Frequenzumrichter</button>
+ </details>
+ <details class="cat"><summary>🎛 Bedienung</summary>
+   <button onclick="addSymbol('pushNO')">Taster Schließer</button>
+   <button onclick="addSymbol('pushNC')">Taster Öffner</button>
+   <button onclick="addSymbol('lamp')">Meldeleuchte</button>
+ </details>
+ <details class="cat"><summary>🔌 Klemmen & Versorgung</summary>
+   <button onclick="addSymbol('terminal')">Klemme</button>
+   <button onclick="addSymbol('earth')">PE</button>
+   <button onclick="addSymbol('threephase')">L1 / L2 / L3</button>
+ </details>
+ <details class="cat"><summary>➡ Querverweise</summary>
+   <button onclick="addSymbol('xrefOut')">Seitenabgang →</button>
+   <button onclick="addSymbol('xrefIn')">← Seiteneingang</button>
+ </details>
+ <details class="cat"><summary>✍ Eigene Symbole</summary>
+   <button onclick="fileImage.click()">Bild/SVG importieren</button>
+ </details>
+ <p style="font-size:11px;color:#666">Freihand: am Strichende ca. 0,5 s halten → gerade Linie. Intelligente Leitungen rasten an Anschlüssen ein. Auswahl: innen ziehen = verschieben, am Rand anfassen und herumziehen = Symbol drehen.</p>
+</aside>
+
+<section id="workspace">
+ <div id="canvasWrap"><div id="sheetHost"><canvas id="canvas"></canvas></div></div>
+ <div id="pages"></div>
+</section>
+<div id="status">Modus: Auswahl</div>
+</div>
+
+<div id="projectModal" class="modal"><div class="box">
+ <h2>Projekt & Schriftfeld</h2>
+ <label>Projekt</label><input id="pProject">
+ <label>Anlage</label><input id="pPlant">
+ <label>Zeichnung</label><input id="pDrawing">
+ <div class="row"><div><label>Bearbeiter</label><input id="pAuthor"></div><div><label>Revision</label><input id="pRev"></div></div>
+ <div class="row"><div><label>Zeichnungs-Nr.</label><input id="pNumber"></div><div><label>Datum</label><input id="pDate" type="date"></div></div>
+ <div class="buttons"><button onclick="closeProjectInfo()">Abbrechen</button><button onclick="applyProjectInfo()">Übernehmen</button></div>
+</div></div>
+
+<div id="wireModal" class="modal"><div class="box">
+ <h2>Leitung</h2>
+ <label>Kabel/Betriebsmittel</label><input id="wireName" placeholder="-W1">
+ <label>Typ / Querschnitt</label><input id="wireType" placeholder="z. B. NYY-J 5×2,5 mm²">
+ <div class="buttons"><button onclick="closeWireInfo(false)">Abbrechen</button><button onclick="closeWireInfo(true)">Übernehmen</button></div>
+</div></div>
+
+<script>
+const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d"),host=document.getElementById("sheetHost");
+const statusBox=document.getElementById("status"), polesEl=document.getElementById("poles");
+const GRID=20, SHEET_W=1400, SHEET_H=900, FRAME=36, TITLE_H=105, TOP_SCALE=34, LEFT_SCALE=34;
+canvas.width=SHEET_W; canvas.height=SHEET_H; host.style.width=SHEET_W+"px"; host.style.height=SHEET_H+"px";
+
+let mode="select", currentPage=0, undoStack=[], dragging=null, dragOffset={x:0,y:0}, rotating=null, rotateStartAngle=0, rotateBase=0;
+let currentStroke=null, holdTimer=null, heldStraight=false, wireStart=null, pendingWire=null;
+let project={name:"",plant:"",drawing:"",author:"",revision:"A",number:"001",date:new Date().toISOString().slice(0,10)};
+let pages=[newPage("Seite 1")];
+function newPage(name){return {name,strokes:[],wires:[],symbols:[],counters:{M:0,K:0,Q:0,F:0,S:0,H:0,X:0,W:0}}}
+function pg(){return pages[currentPage]}
+function snap(v){return Math.round(v/GRID)*GRID}
+function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+function workBounds(p){return p.x>FRAME+LEFT_SCALE&&p.x<SHEET_W-FRAME&&p.y>FRAME+TOP_SCALE&&p.y<SHEET_H-FRAME-TITLE_H}
+function setMode(m){mode=m;["selectBtn","pencilBtn","wireBtn","eraseBtn"].forEach(id=>document.getElementById(id).classList.remove("active"));document.getElementById({select:"selectBtn",pencil:"pencilBtn",wire:"wireBtn",erase:"eraseBtn"}[m]).classList.add("active");statusBox.textContent="Modus: "+({select:"Auswahl",pencil:"Freihand",wire:"Intelligente Leitung",erase:"Löschen"}[m])}
+selectBtn.onclick=()=>setMode("select");pencilBtn.onclick=()=>setMode("pencil");wireBtn.onclick=()=>setMode("wire");eraseBtn.onclick=()=>setMode("erase");
+
+// Apple Pencil: Doppeltipp / Barrel-Button -> zwischen Freihand und Radierer wechseln.
+// Wird genutzt, wenn Safari/iPadOS das Pencil-Signal als Pointer-Button weitergibt.
+let pencilReturnMode="pencil";
+function togglePencilEraser(){
+  if(mode==="erase"){
+    setMode(pencilReturnMode||"pencil");
+  }else{
+    pencilReturnMode=mode==="pencil" ? "pencil" : mode;
+    setMode("erase");
+  }
+  statusBox.textContent = mode==="erase" ? "Apple Pencil: Radierer" : "Apple Pencil: "+({pencil:"Freihand",wire:"Leitung",select:"Auswahl"}[mode]||mode);
+}
+canvas.addEventListener("pointerdown", e=>{
+  if(e.pointerType==="pen" && (e.button===5 || (e.buttons & 32))){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    togglePencilEraser();
+  }
+}, true);
+
+function snapshot(){undoStack.push(JSON.stringify({pages,currentPage,project}));if(undoStack.length>40)undoStack.shift()}
+function undo(){if(!undoStack.length)return;let s=JSON.parse(undoStack.pop());pages=s.pages;currentPage=s.currentPage;project=s.project;renderPages();draw()}
+function nextLabel(t){let map={motor3:"M",motorBrake:"M",coil:"K",contactor3:"K",contactNO:"K",contactNC:"K",fuse1:"F",fuse3:"F",breaker1:"Q",breaker3:"Q",overload3:"Q",pushNO:"S",pushNC:"S",lamp:"H",terminal:"X",vfd:"U",xrefOut:"W",xrefIn:"W"};let k=map[t]||"X";pg().counters[k]=(pg().counters[k]||0)+1;return "-"+k+pg().counters[k]}
+function addSymbol(type){snapshot();let s={id:crypto.randomUUID?crypto.randomUUID():Date.now()+Math.random(),type,x:snap(SHEET_W/2),y:snap(SHEET_H/2),w:100,h:70,label:nextLabel(type),rotation:0};pg().symbols.push(s);setMode("select");draw()}
+function ports(s){
+ let local;
+ if(["motor3","motorBrake","contactor3","overload3","fuse3","breaker3"].includes(s.type))
+   local=[{x:-24,y:-36,n:"1"},{x:0,y:-36,n:"3"},{x:24,y:-36,n:"5"},{x:-24,y:36,n:"2"},{x:0,y:36,n:"4"},{x:24,y:36,n:"6"}];
+ else local=[{x:-50,y:0,n:"A"},{x:50,y:0,n:"B"}];
+ let a=(s.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a);
+ return local.map(p=>({x:s.x+p.x*c-p.y*si,y:s.y+p.x*si+p.y*c,n:p.n}));
+}
+function nearestSnap(p){let best=null,bd=15;for(const s of pg().symbols)for(const pt of ports(s)){let d=Math.hypot(pt.x-p.x,pt.y-p.y);if(d<bd){bd=d;best={x:pt.x,y:pt.y,symbolId:s.id,port:pt.n}}}for(const w of pg().wires){for(const seg of wireSegments(w)){let q=closestPoint(p,seg.a,seg.b),d=Math.hypot(q.x-p.x,q.y-p.y);if(d<bd){bd=d;best={x:snap(q.x),y:snap(q.y),net:w.net}}}}return best||{x:snap(p.x),y:snap(p.y)}}
+function closestPoint(p,a,b){let dx=b.x-a.x,dy=b.y-a.y,t=((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1);t=Math.max(0,Math.min(1,t));return{x:a.x+t*dx,y:a.y+t*dy}}
+function wireSegments(w){let mx=snap((w.x1+w.x2)/2);return[{a:{x:w.x1,y:w.y1},b:{x:mx,y:w.y1}},{a:{x:mx,y:w.y1},b:{x:mx,y:w.y2}},{a:{x:mx,y:w.y2},b:{x:w.x2,y:w.y2}}]}
+
+canvas.addEventListener("pointerdown",e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);let p=pos(e);if(!workBounds(p))return;
+ if(mode==="pencil"){snapshot();heldStraight=false;currentStroke={points:[p],straight:false};clearTimeout(holdTimer);holdTimer=setTimeout(()=>{if(currentStroke&&currentStroke.points.length>1){heldStraight=true;currentStroke.straight=true;draw()}},500)}
+ else if(mode==="wire"){let q=nearestSnap(p);if(!wireStart){wireStart=q;statusBox.textContent="Leitung: Zielpunkt wählen"}else{snapshot();let end=q;let poles=+polesEl.value;let net=wireStart.net||end.net||("N"+Date.now());pendingWire={x1:wireStart.x,y1:wireStart.y,x2:end.x,y2:end.y,poles,net,start:wireStart,end,name:"",cable:""};wireStart=null;wireModal.classList.add("show")}}
+ else if(mode==="select"){let s=hitSymbol(p);if(s){snapshot();
+   // Tippen nahe dem Symbolrand startet Drehen, innen startet Verschieben.
+   let d=Math.hypot(p.x-s.x,p.y-s.y);
+   let rotateRadius=Math.max(s.w,s.h)*0.42;
+   if(d>=rotateRadius){
+     rotating=s;
+     rotateStartAngle=Math.atan2(p.y-s.y,p.x-s.x);
+     rotateBase=s.rotation||0;
+     statusBox.textContent="Symbol drehen – Pencil/Finger um das Symbol bewegen";
+   }else{
+     dragging=s;
+     dragOffset={x:p.x-s.x,y:p.y-s.y};
+   }
+ }}
+ else if(mode==="erase"){snapshot();eraseAt(p);draw()}
+});
+canvas.addEventListener("pointermove",e=>{e.preventDefault();let p=pos(e);
+ if(mode==="pencil"&&currentStroke){let last=currentStroke.points[currentStroke.points.length-1];if(Math.hypot(p.x-last.x,p.y-last.y)>2){currentStroke.points.push(p);clearTimeout(holdTimer);holdTimer=setTimeout(()=>{if(currentStroke){heldStraight=true;currentStroke.straight=true;draw()}},500)}draw()}
+ if(mode==="select"&&dragging){dragging.x=snap(p.x-dragOffset.x);dragging.y=snap(p.y-dragOffset.y);updateAttached(dragging);draw()}
+ if(mode==="select"&&rotating){
+   let a=Math.atan2(p.y-rotating.y,p.x-rotating.x);
+   let deg=rotateBase+(a-rotateStartAngle)*180/Math.PI;
+   // 15°-Raster; nahe 0/90/180/270 besonders sauber.
+   rotating.rotation=Math.round(deg/15)*15;
+   updateAttached(rotating);
+   statusBox.textContent="Drehung: "+(((rotating.rotation%360)+360)%360)+"°";
+   draw();
+ }
+});
+canvas.addEventListener("pointerup",e=>{e.preventDefault();clearTimeout(holdTimer);if(mode==="pencil"&&currentStroke){if(currentStroke.straight){let a=currentStroke.points[0],b=currentStroke.points.at(-1);b=angleSnap(a,b);currentStroke.points=[a,b]}pg().strokes.push(currentStroke);currentStroke=null;draw()}dragging=null;rotating=null;if(mode==="select")statusBox.textContent="Modus: Auswahl"});
+canvas.addEventListener("pointercancel",()=>{clearTimeout(holdTimer);currentStroke=null;dragging=null;rotating=null});
+function angleSnap(a,b){let dx=b.x-a.x,dy=b.y-a.y,r=Math.hypot(dx,dy),ang=Math.atan2(dy,dx),step=Math.PI/4;ang=Math.round(ang/step)*step;return{x:a.x+Math.cos(ang)*r,y:a.y+Math.sin(ang)*r}}
+function updateAttached(s){for(const w of pg().wires){for(const side of ["start","end"]){let ep=w[side];if(ep&&ep.symbolId===s.id){let pt=ports(s).find(p=>p.n===ep.port);if(pt){ep.x=pt.x;ep.y=pt.y;if(side==="start"){w.x1=pt.x;w.y1=pt.y}else{w.x2=pt.x;w.y2=pt.y}}}}}}
+function hitSymbol(p){for(let i=pg().symbols.length-1;i>=0;i--){let s=pg().symbols[i];if(Math.abs(p.x-s.x)<s.w/2&&Math.abs(p.y-s.y)<s.h/2)return s}return null}
+function eraseAt(p){let s=hitSymbol(p);if(s){pg().symbols=pg().symbols.filter(x=>x!==s);return}let wi=pg().wires.findIndex(w=>wireSegments(w).some(g=>Math.hypot(closestPoint(p,g.a,g.b).x-p.x,closestPoint(p,g.a,g.b).y-p.y)<12));if(wi>=0){pg().wires.splice(wi,1);return}for(let i=pg().strokes.length-1;i>=0;i--)if(pg().strokes[i].points.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<12)){pg().strokes.splice(i,1);return}}
+
+function closeWireInfo(ok){wireModal.classList.remove("show");if(ok&&pendingWire){pendingWire.name=wireName.value;pendingWire.cable=wireType.value;pg().wires.push(pendingWire)}pendingWire=null;wireName.value="";wireType.value="";draw()}
+function draw(){ctx.clearRect(0,0,SHEET_W,SHEET_H);drawSheet();pg().wires.forEach(drawWire);pg().strokes.forEach(drawStroke);if(currentStroke)drawStroke(currentStroke,true);pg().symbols.forEach(drawSymbol);if(wireStart){ctx.beginPath();ctx.arc(wireStart.x,wireStart.y,6,0,Math.PI*2);ctx.fill()}}
+function drawSheet(){ctx.fillStyle="#fff";ctx.fillRect(0,0,SHEET_W,SHEET_H);ctx.strokeStyle="#111";ctx.lineWidth=2;ctx.strokeRect(FRAME,FRAME,SHEET_W-2*FRAME,SHEET_H-2*FRAME);
+ let x0=FRAME+LEFT_SCALE,y0=FRAME+TOP_SCALE,x1=SHEET_W-FRAME,y1=SHEET_H-FRAME-TITLE_H;ctx.strokeRect(x0,y0,x1-x0,y1-y0);
+ ctx.font="12px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#111";
+ let n=1;
+ for(let x=x0;x<x1;x+=100){
+   let cw=Math.min(100,x1-x);
+   ctx.strokeRect(x,FRAME,cw,TOP_SCALE);
+   ctx.fillText(n++,x+cw/2,FRAME+TOP_SCALE/2);
+ }
+ let letters="ABCDEFGH";
+ let cellH=(y1-y0)/letters.length;
+ for(let i=0;i<letters.length;i++){
+   let y=y0+i*cellH;
+   ctx.strokeRect(FRAME,y,LEFT_SCALE,cellH);
+   ctx.fillText(letters[i],FRAME+LEFT_SCALE/2,y+cellH/2);
+ }
+ // Strompfadnummern unten – passend zu den Kästchen oben
+ let bottomN=1;
+ for(let x=x0;x<x1;x+=100){
+   let cw=Math.min(100,x1-x);
+   ctx.strokeRect(x,y1,cw,TOP_SCALE);
+   ctx.fillText(bottomN++,x+cw/2,y1+TOP_SCALE/2);
+ }
+ ctx.textBaseline="alphabetic";
+ ctx.strokeStyle="#eee";ctx.lineWidth=1;for(let x=x0;x<x1;x+=GRID){ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke()}for(let y=y0;y<y1;y+=GRID){ctx.beginPath();ctx.moveTo(x0,y);ctx.lineTo(x1,y);ctx.stroke()}
+ drawTitleBlock(x0,y1,x1-x0,TITLE_H)}
+function drawTitleBlock(x,y,w,h){ctx.strokeStyle="#111";ctx.lineWidth=1.5;ctx.strokeRect(x,y,w,h);let split=x+w*.62;ctx.beginPath();ctx.moveTo(split,y);ctx.lineTo(split,y+h);ctx.stroke();ctx.font="12px Arial";ctx.textAlign="left";ctx.fillStyle="#111";ctx.fillText("Projekt: "+project.name,x+8,y+20);ctx.fillText("Anlage: "+project.plant,x+8,y+40);ctx.fillText("Zeichnung: "+project.drawing,x+8,y+60);ctx.fillText("Bearbeiter: "+project.author+"   Datum: "+project.date,x+8,y+82);ctx.font="bold 14px Arial";ctx.fillText("Zeichnungs-Nr.: "+project.number,split+8,y+22);ctx.font="12px Arial";ctx.fillText("Revision: "+project.revision,split+8,y+45);ctx.fillText("Seite: "+(currentPage+1)+" / "+pages.length,split+8,y+67);ctx.fillText(pg().name,split+8,y+89)}
+function drawStroke(s,temp=false){let pts=s.points;if(!pts||pts.length<2)return;ctx.save();ctx.strokeStyle="#111";ctx.lineWidth=2.2;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();ctx.restore()}
+function drawWire(w){ctx.save();ctx.strokeStyle="#111";ctx.fillStyle="#111";ctx.lineWidth=2;let count=w.poles||1,spacing=8;for(let k=0;k<count;k++){let off=(k-(count-1)/2)*spacing, mx=snap((w.x1+w.x2)/2)+off;ctx.beginPath();ctx.moveTo(w.x1+off,w.y1);ctx.lineTo(mx,w.y1);ctx.lineTo(mx,w.y2);ctx.lineTo(w.x2+off,w.y2);ctx.stroke()}if(count===5){ctx.font="10px Arial";["L1","L2","L3","N","PE"].forEach((t,i)=>ctx.fillText(t,w.x1+8,w.y1+(i-2)*10))}if(w.name||w.cable){ctx.font="11px Arial";ctx.fillText((w.name+" "+w.cable).trim(),snap((w.x1+w.x2)/2)+6,(w.y1+w.y2)/2-6)}ctx.restore()}
+function label(s){ctx.font="bold 13px Arial";ctx.textAlign="center";ctx.fillStyle="#111";ctx.fillText(s.label||"",0,-45)}
+function drawSymbol(s){if(s.type==="custom"){let im=new Image();im.onload=()=>{ctx.save();ctx.translate(s.x,s.y);ctx.rotate((s.rotation||0)*Math.PI/180);ctx.drawImage(im,-s.w/2,-s.h/2,s.w,s.h);ctx.restore();drawPorts(s)};im.src=s.image;return}ctx.save();ctx.translate(s.x,s.y);ctx.rotate((s.rotation||0)*Math.PI/180);ctx.strokeStyle="#111";ctx.fillStyle="#111";ctx.lineWidth=2;
+ let three=["fuse3","breaker3","overload3","contactor3"].includes(s.type);
+ if(s.type==="motor3"||s.type==="motorBrake"){ctx.beginPath();ctx.arc(0,0,28,0,Math.PI*2);ctx.stroke();ctx.font="bold 18px Arial";ctx.textAlign="center";ctx.fillText("M",0,6);if(s.type==="motorBrake"){ctx.strokeRect(32,-12,15,24)}}
+ else if(s.type==="vfd"){ctx.strokeRect(-34,-27,68,54);ctx.font="bold 13px Arial";ctx.textAlign="center";ctx.fillText("FU",0,5)}
+ else if(three){for(let i=-1;i<=1;i++){let xx=i*24;ctx.beginPath();ctx.moveTo(xx,-36);ctx.lineTo(xx,-12);if(s.type.includes("fuse"))ctx.strokeRect(xx-7,-12,14,24);else{ctx.moveTo(xx,-12);ctx.lineTo(xx+8,12)}ctx.moveTo(xx,12);ctx.lineTo(xx,36);ctx.stroke()}}
+ else if(["fuse1","breaker1"].includes(s.type)){ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(-15,0);if(s.type==="fuse1")ctx.strokeRect(-15,-9,30,18);else{ctx.moveTo(-15,0);ctx.lineTo(15,-18)}ctx.moveTo(15,0);ctx.lineTo(50,0);ctx.stroke()}
+ else if(["contactNO","pushNO"].includes(s.type)){ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(-12,0);ctx.moveTo(12,0);ctx.lineTo(50,0);ctx.moveTo(-12,0);ctx.lineTo(12,-18);ctx.stroke()}
+ else if(["contactNC","pushNC"].includes(s.type)){ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(-12,0);ctx.moveTo(12,0);ctx.lineTo(50,0);ctx.moveTo(-12,0);ctx.lineTo(12,-18);ctx.moveTo(5,-20);ctx.lineTo(16,2);ctx.stroke()}
+ else if(s.type==="coil"){ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(-20,0);ctx.strokeRect(-20,-18,40,36);ctx.beginPath();ctx.moveTo(20,0);ctx.lineTo(50,0);ctx.stroke()}
+ else if(s.type==="lamp"){ctx.beginPath();ctx.arc(0,0,22,0,Math.PI*2);ctx.moveTo(-14,-14);ctx.lineTo(14,14);ctx.moveTo(14,-14);ctx.lineTo(-14,14);ctx.stroke()}
+ else if(s.type==="terminal"){ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.moveTo(-50,0);ctx.lineTo(-12,0);ctx.moveTo(12,0);ctx.lineTo(50,0);ctx.stroke()}
+ else if(s.type==="earth"){ctx.beginPath();ctx.moveTo(0,-25);ctx.lineTo(0,0);ctx.moveTo(-18,0);ctx.lineTo(18,0);ctx.moveTo(-12,7);ctx.lineTo(12,7);ctx.moveTo(-6,14);ctx.lineTo(6,14);ctx.stroke()}
+ else if(s.type==="threephase"){ctx.font="12px Arial";ctx.textAlign="left";["L1","L2","L3"].forEach((t,i)=>{let yy=(i-1)*18;ctx.fillText(t,-35,yy+4);ctx.beginPath();ctx.moveTo(-10,yy);ctx.lineTo(40,yy);ctx.stroke()})}
+ else if(s.type==="xrefOut"||s.type==="xrefIn"){ctx.beginPath();if(s.type==="xrefOut"){ctx.moveTo(-45,0);ctx.lineTo(35,0);ctx.lineTo(20,-10);ctx.moveTo(35,0);ctx.lineTo(20,10)}else{ctx.moveTo(45,0);ctx.lineTo(-35,0);ctx.lineTo(-20,-10);ctx.moveTo(-35,0);ctx.lineTo(-20,10)}ctx.stroke();ctx.font="11px Arial";ctx.textAlign="center";ctx.fillText(crossRefText(s),0,22)}
+ label(s);ctx.restore();drawPorts(s)}
+function drawPorts(s){ctx.save();ctx.fillStyle="#087f5b";for(const p of ports(s)){ctx.beginPath();ctx.arc(p.x,p.y,3.5,0,Math.PI*2);ctx.fill()}ctx.restore()}
+function crossRefText(s){let other=[];pages.forEach((p,pi)=>p.symbols.forEach(o=>{if(o!==s&&o.label===s.label)other.push((pi+1)+"/"+pathNumber(o.x))}));return other.length?"→ "+other.join(", "):"Querverweis"}
+function pathNumber(x){let x0=FRAME+LEFT_SCALE;return Math.max(1,Math.floor((x-x0)/100)+1)}
+
+function renderPages(){pagesEl=document.getElementById("pages");pagesEl.innerHTML="";pages.forEach((p,i)=>{let b=document.createElement("button");b.className="pageBtn"+(i===currentPage?" active":"");b.textContent=(i+1)+" · "+p.name;b.onclick=()=>{currentPage=i;wireStart=null;renderPages();draw()};pagesEl.appendChild(b)});let add=document.createElement("button");add.className="action";add.textContent="＋ Seite";add.onclick=()=>{snapshot();pages.push(newPage("Seite "+(pages.length+1)));currentPage=pages.length-1;renderPages();draw()};pagesEl.appendChild(add);let dup=document.createElement("button");dup.className="action";dup.textContent="⧉ Duplizieren";dup.onclick=()=>{snapshot();let cp=JSON.parse(JSON.stringify(pg()));cp.name=pg().name+" Kopie";pages.splice(currentPage+1,0,cp);currentPage++;renderPages();draw()};pagesEl.appendChild(dup);let ren=document.createElement("button");ren.className="action";ren.textContent="✎ Umbenennen";ren.onclick=()=>{let n=prompt("Seitenname:",pg().name);if(n){pg().name=n;renderPages();draw()}};pagesEl.appendChild(ren);let del=document.createElement("button");del.className="action";del.textContent="🗑 Seite";del.onclick=()=>{if(pages.length>1&&confirm("Diese Seite löschen?")){snapshot();pages.splice(currentPage,1);currentPage=Math.max(0,currentPage-1);renderPages();draw()}};pagesEl.appendChild(del)}
+function openProjectInfo(){pProject.value=project.name;pPlant.value=project.plant;pDrawing.value=project.drawing;pAuthor.value=project.author;pRev.value=project.revision;pNumber.value=project.number;pDate.value=project.date;projectModal.classList.add("show")}
+function closeProjectInfo(){projectModal.classList.remove("show")}
+function applyProjectInfo(){project={name:pProject.value,plant:pPlant.value,drawing:pDrawing.value,author:pAuthor.value,revision:pRev.value,number:pNumber.value,date:pDate.value};closeProjectInfo();draw()}
+function saveProject(){let data=JSON.stringify({version:3,project,pages,currentPage},null,2),blob=new Blob([data],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="schaltplan-v3.json";a.click();URL.revokeObjectURL(url)}
+fileProject.onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(d.pages){snapshot();project=d.project||project;pages=d.pages;currentPage=Math.min(d.currentPage||0,pages.length-1);renderPages();draw()}else alert("Bitte ein V3-Projekt laden.")}catch{alert("Projektdatei ungültig.")}};r.readAsText(f);e.target.value=""}
+fileImage.onchange=e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{snapshot();pg().symbols.push({id:Date.now()+Math.random(),type:"custom",x:snap(SHEET_W/2),y:snap(SHEET_H/2),w:120,h:80,label:f.name.replace(/\.[^.]+$/,""),image:r.result});draw()};r.readAsDataURL(f);e.target.value=""}
+
+renderPages();setMode("select");draw();
+</script>
+</body></html>
